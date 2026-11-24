@@ -85,9 +85,15 @@ internal static class InfoParser
 
         JToken[] runs = innerJsonToken.SelectObject<JToken[]>("subtitle.runs");
 
+        // Signed-in responses add header buttons and use watchEndpoint instead of watchPlaylistEndpoint,
+        // so find the play button and accept either endpoint rather than indexing
+        string? playlistId = innerJsonToken.SelectTokens("buttons[*].musicPlayButtonRenderer.playNavigationEndpoint.*.playlistId").Select(t => t.ToString()).FirstOrDefault();
+        if (playlistId is null)
+            throw new ArgumentNullException("buttons[*].musicPlayButtonRenderer.playNavigationEndpoint.*.playlistId", "Requiered token is null.");
+
         return new(
             name: innerJsonToken.SelectObject<string>("title.runs[0].text"),
-            id: innerJsonToken.SelectObjectOptional<string>("buttons[1].musicPlayButtonRenderer.playNavigationEndpoint.watchPlaylistEndpoint.playlistId") ?? innerJsonToken.SelectObject<string>("buttons[2].musicPlayButtonRenderer.playNavigationEndpoint.watchPlaylistEndpoint.playlistId"),
+            id: playlistId,
             description: innerJsonToken.SelectObjectOptional<JToken[]>("description.musicDescriptionShelfRenderer.description.runs")?.Aggregate("", (desc, run) => desc + run.SelectObjectOptional<string>("text")),
             artists: innerJsonToken.SelectArtists("straplineTextOne.runs"),
             duration: innerJsonToken.SelectObject<string>("secondSubtitle.runs[2].text").ToTimeSpanLong(),
